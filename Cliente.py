@@ -1,6 +1,6 @@
 class Cliente():
-    def __init__(self, id, nome, chave_publica, uri):
-        self.id = id
+    def __init__(self, nome):
         self.nome = nome
-        self.chave_publica = chave_publica
-        self.uri = uri
+        self.chave_publica = None
+        self.uri = None
+

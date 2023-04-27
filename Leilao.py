@@ -14,6 +14,7 @@ class Leilao(Thread):
         self.vencedor = None
         self.notificar = notificar
         self.thread = Thread(target=self._iniciar_leilao)
+        self.list_Cliente.append(criador)
 
     def iniciar_leilao(self):
         self.thread.start()
@@ -26,13 +27,17 @@ class Leilao(Thread):
                 self.lance_atual = lance
                 self.vencedor = cliente
                 msg = f"Leilão {id} - Lance recebido! Cliente {cliente.nome},Produto:{self.produto}, Lance: {lance}"
-                self.notificar_clientes(msg)
+                self.notificar_clientes(msg, self.list_Cliente)
             tempo_atual = time.perf_counter()
         msg = f"Leilão {self.id} finalizado! Produto vendido: {self.produto}, Preço de Venda: {self.lance_atual}, Vencedor: {self.vencedor}"
-        self.notificar_clientes(msg)
+        self.notificar_clientes(msg, self.list_Cliente)
+        self.duracao = -1
         return True
 
     def dar_lance(self, cliente, lance):
+        if self.duracao == -1:
+            msg = "Não foi possivel realizar o lance! Leilão finalizado!"
+            self.notificar_clientes(msg, (cliente,))
         if lance <= self.lance_atual:
             return False
         buscarCliente = filter(lambda x: (x.id == cliente.id), self.listCliente)
@@ -43,8 +48,8 @@ class Leilao(Thread):
     def listar_lance_atual(self):
         return self.lance_atual
 
-    def notificar_clientes(self, msg):
-        self.notificar(msg, self.list_Cliente)
+    def notificar_clientes(self, msg, clientes):
+        self.notificar(msg, clientes)
 
     def __str__(self):
         tempo_restante = time.perf_counter() - self.tempo_inicio
