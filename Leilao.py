@@ -10,7 +10,7 @@ class Leilao(Thread):
         self.list_lance = []
         self.lance_atual = produto.preco_minimo
         self.duracao = duracao
-        self.tempo_inicio = 0;
+        self.tempo_inicio = 0
         self.vencedor = None
         self.notificar = notificar
         self.thread = Thread(target=self._iniciar_leilao)
@@ -22,7 +22,7 @@ class Leilao(Thread):
         self.tempo_inicio = time.perf_counter()
         tempo_atual = time.perf_counter()
         while(tempo_atual - self.tempo_inicio < self.duracao):
-            if len(self.list_lance > 0):
+            if len(self.list_lance) > 0:
                 cliente, lance = self.list_lance.pop(0).items()
                 self.lance_atual = lance
                 self.vencedor = cliente
@@ -40,10 +40,10 @@ class Leilao(Thread):
             self.notificar_clientes(msg, (cliente,))
         if lance <= self.lance_atual:
             return False
-        buscarCliente = filter(lambda x: (x.id == cliente.id), self.listCliente)
+        buscarCliente = filter(lambda x: (x.id == cliente.id), self.list_Cliente)
         if buscarCliente is None:
-            self.listCliente.append(cliente)
-        self.listLance.append({cliente: lance})
+            self.list_Cliente.append(cliente)
+        self.list_lance.append({cliente: lance})
 
     def listar_lance_atual(self):
         return self.lance_atual
