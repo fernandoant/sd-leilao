@@ -29,15 +29,11 @@ class Leilao(Thread):
         tempo_atual = time.perf_counter()
         while(tempo_atual - self.tempo_inicio < self.duracao):
             if len(self.lances) > 0:
-                lance = list(self.lances.pop(0).items())[0]
-                # ---- TEMP -----------
-                nome_cliente = lance[0]
-                valor_lance =  lance[1]
-                # ---------------------
-
-
+                lance = self.lances.pop(0)
+                nome_cliente = lance.cliente.nome
+                valor_lance = lance.valor
                 if DEBUG == 1:
-                    print(f"Lance recebido do cliente {nome_cliente}, valor {valor_lance}")
+                    print(f"2 -Lance recebido do cliente {nome_cliente}, valor {valor_lance}")
                 self.lance_atual = valor_lance
                 self.vencedor = nome_cliente
                 msg = f"Leilão {self.id_leilao} - Lance recebido! Cliente {nome_cliente}, Produto:{self.produto.nome}, Lance: {valor_lance}"
@@ -50,15 +46,15 @@ class Leilao(Thread):
 
     def dar_lance(self, lance):
         if DEBUG == 1:
-            print(f"Lance recebido! Cliente {lance.cliente}, Lance {lance.valor}")
+            print(f"1 - Lance recebido! Cliente {lance.cliente.nome}, Lance {lance.valor}")
         if self.duracao == -1:
             msg = "Não foi possivel realizar o lance! Leilão finalizado!"
             self.notificar_clientes(msg, (lance.cliente,))
-        if lance <= self.lance_atual:
+        if lance.valor <= self.lance_atual:
             return False
         
-        buscarCliente = list(filter(lambda x: (x['nome'] == lance.cliente.nome), self.clientes))
-        if len(buscarCliente) == 0:
+        buscarCliente = list(filter(lambda x: (x.nome == lance.cliente.nome), self.clientes))
+        if buscarCliente == []:
             self.clientes.append(lance.cliente)
             
         self.lances.append(lance)

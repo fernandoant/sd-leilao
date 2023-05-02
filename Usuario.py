@@ -39,9 +39,8 @@ class Usuario(Cliente):
 
     def dar_lance(self):
         id_leilao = int(input("Insira o id do leilao: "))
-        valor_lance = float(input("Insira o valor do lance: "))
-        lance = Lance(self.__get_cliente, valor_lance)
-        self.servidor.dar_lance(id_leilao, lance)
+        lance = float(input("Insira o valor do lance: "))
+        self.servidor.dar_lance(self.__get_cliente(), id_leilao, lance)
 
 
     @Pyro5.api.expose

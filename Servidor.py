@@ -4,6 +4,7 @@ import Pyro5.server
 from Produto import Produto
 from Leilao import Leilao
 from Cliente import Cliente
+from Lance import Lance
 
 DEBUG = 1
 
@@ -32,7 +33,6 @@ class Servidor():
             print("Listando leilões cadastrados")
         ret = [x.produto.nome for x in self.leiloes]
         return ret
-        #return self.leiloes
 
     @Pyro5.api.expose
     @Pyro5.api.oneway
@@ -43,20 +43,28 @@ class Servidor():
             return
         id_leilao = len(self.leiloes) + 1
         produto = Produto(nome, descricao, preco_minimo)
+        # transformando dicionario cliente em classe cliente
+        criador = Cliente(criador['nome'], criador['chave_publica'], criador['uri'])
+        #----------------------------------------------------------
         leilao = Leilao(id_leilao, criador, produto, duracao, self.notificar_clientes)
         leilao.iniciar_leilao()
         self.leiloes.append(leilao)
-        msg = f"Leilão {id_leilao} - novo produto registrado! Vendedor {criador['nome']}, Produto:{nome}, Preço inicial: {preco_minimo}, Duração: {duracao}"
+        msg = f"Leilão {id_leilao} - novo produto registrado! Vendedor {criador.nome}, Produto:{nome}, Preço inicial: {preco_minimo}, Duração: {duracao}"
         self.notificar_clientes(msg, self.clientes)
 
     @Pyro5.api.expose
     @Pyro5.api.oneway
-    def dar_lance(self, id_leilao, lance):
+    def dar_lance(self, cliente, id_leilao, valor_lance):
+        # transformando dicionario cliente em classe cliente
+        cliente = Cliente(cliente['nome'], cliente['chave_publica'], cliente['uri'])
+        #-------------------------------
         if DEBUG == 1:
-            print(f"Lance recebido, leilão {id_leilao}, cliente {lance.cliente.nome}")
-      # utilizar chave_publica enviada durante o cadastro para validar o lance
+            print(f"Lance recebido, leilão {id_leilao}, cliente {cliente.nome}")
         if id_leilao <= 0 or id_leilao > len(self.leiloes):
             return
+        lance = Lance(cliente, valor_lance)
+
+       #--------------------------------
         leilao = self.leiloes[id_leilao - 1]
         leilao.dar_lance(lance)
 
