@@ -4,3 +4,5 @@ class Produto:
         self.descricao = descricao
         self.preco_minimo = preco_minimo
 
+    def __str__(self):
+        return f"Nome: {self.nome}, Descrição: {self.descricao}"

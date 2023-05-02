@@ -1,51 +1,72 @@
 from Produto import Produto
-import time
 from threading import Thread
+import time
+
+DEBUG = 1
+
 class Leilao(Thread):
-    def __init__(self, id, criador, produto:Produto, duracao, notificar):
-        self.id = id
+    def __init__(self, id_leilao, criador, produto:Produto, duracao, notificar):
+        self.id_leilao = id_leilao
         self.criador = criador
         self.produto = produto
-        self.list_Cliente = []
-        self.list_lance = []
+        self.clientes = []
+        self.lances = []
         self.lance_atual = produto.preco_minimo
         self.duracao = duracao
         self.tempo_inicio = 0
         self.vencedor = None
         self.notificar = notificar
         self.thread = Thread(target=self._iniciar_leilao)
-        self.list_Cliente.append(criador)
+        self.clientes.append(criador)
 
     def iniciar_leilao(self):
+        if DEBUG == 1:
+            print(f"Iniciando o leilão {self.id_leilao}")
         self.thread.start()
+
     def _iniciar_leilao(self):
         self.tempo_inicio = time.perf_counter()
         tempo_atual = time.perf_counter()
         while(tempo_atual - self.tempo_inicio < self.duracao):
-            if len(self.list_lance) > 0:
-                cliente, lance = self.list_lance.pop(0).items()
-                self.lance_atual = lance
-                self.vencedor = cliente
-                msg = f"Leilão {id} - Lance recebido! Cliente {cliente.nome},Produto:{self.produto}, Lance: {lance}"
-                self.notificar_clientes(msg, self.list_Cliente)
+            if len(self.lances) > 0:
+                lance = list(self.lances.pop(0).items())[0]
+                # ---- TEMP -----------
+                nome_cliente = lance[0]
+                valor_lance =  lance[1]
+                # ---------------------
+
+
+                if DEBUG == 1:
+                    print(f"Lance recebido do cliente {nome_cliente}, valor {valor_lance}")
+                self.lance_atual = valor_lance
+                self.vencedor = nome_cliente
+                msg = f"Leilão {self.id_leilao} - Lance recebido! Cliente {nome_cliente}, Produto:{self.produto.nome}, Lance: {valor_lance}"
+                self.notificar_clientes(msg, self.clientes)
             tempo_atual = time.perf_counter()
-        msg = f"Leilão {self.id} finalizado! Produto vendido: {self.produto}, Preço de Venda: {self.lance_atual}, Vencedor: {self.vencedor}"
-        self.notificar_clientes(msg, self.list_Cliente)
+        msg = f"Leilão {self.id_leilao} finalizado! Produto vendido: {self.produto}, Preço de Venda: {self.lance_atual}, Vencedor: {self.vencedor}"
+        self.notificar_clientes(msg, self.clientes)
         self.duracao = -1
         return True
 
-    def dar_lance(self, cliente, lance):
+    def dar_lance(self, lance):
+        if DEBUG == 1:
+            print(f"Lance recebido! Cliente {lance.cliente}, Lance {lance.valor}")
         if self.duracao == -1:
             msg = "Não foi possivel realizar o lance! Leilão finalizado!"
-            self.notificar_clientes(msg, (cliente,))
+            self.notificar_clientes(msg, (lance.cliente,))
         if lance <= self.lance_atual:
             return False
-        buscarCliente = filter(lambda x: (x.id == cliente.id), self.list_Cliente)
-        if buscarCliente is None:
-            self.list_Cliente.append(cliente)
-        self.list_lance.append({cliente: lance})
+        
+        buscarCliente = list(filter(lambda x: (x['nome'] == lance.cliente.nome), self.clientes))
+        if len(buscarCliente) == 0:
+            self.clientes.append(lance.cliente)
+            
+        self.lances.append(lance)
+        print(f"dar_lance: Lista de lances = {self.lances}")
 
     def listar_lance_atual(self):
+        if DEBUG == 1:
+            print(f"Listando lance atual")
         return self.lance_atual
 
     def notificar_clientes(self, msg, clientes):
@@ -53,7 +74,8 @@ class Leilao(Thread):
 
     def __str__(self):
         tempo_restante = time.perf_counter() - self.tempo_inicio
-        print(f"Leilão {self.id}")
-        print(f"Criador: {self.criador.nome}, Produto: {self.produto.nome}")
-        print(f"Último lance: {self.lance_atual}, Tempo Restante: {tempo_restante}")
-
+        return f"""\
+                Leilão {self.id_leilao}\n\
+                Criador: {self.criador.nome}, Produto: {self.produto.nome}\
+                Último lance: {self.lance_atual}, Tempo Restante: {tempo_restante}\
+                """
