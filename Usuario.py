@@ -2,21 +2,46 @@ from threading import Thread
 from Cliente import Cliente
 from Lance import Lance
 
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+from Crypto import Random
+
 import Pyro5.server
 import Pyro5.api
-Pyro5.api.register_class_to_dict(Cliente, lambda x: {"nome": f"{x.nome}", "chave_publica": f"{x.chave_publica}", "uri": f"{x.uri}"})
-#Pyro5.api.register_class_to_dict(Lance, lambda x: {"nome": f"{x.nome}", "chave_publica": f"{x.chave_publica}", "uri": f"{x.uri}"})
+
+def __cliente_to_dict(cliente):
+    return {
+        "__class__": "Cliente",
+        "nome": f"{cliente.nome}",
+        "chave_publica": f"{cliente.chave_publica}",
+        "uri": f"{cliente.uri}",
+    }
+
+def __lance_to_dict(lance):
+    cliente = __cliente_to_dict(lance.cliente)
+    return {
+        "__class__": "Lance",
+        "cliente": cliente,
+        "valor_lance" : lance.valor,
+    }
+
+Pyro5.api.register_class_to_dict(Cliente, __cliente_to_dict)
+Pyro5.api.register_class_to_dict(Lance, __lance_to_dict)
+
  
 class Usuario(Cliente):
+
     def __init__(self, servidor, nome_cliente):
+        random_seed = Random.new().read
+
         self.daemon = Pyro5.server.Daemon()
         self.uri = self.daemon.register(self)
         self.thread = Thread(target=self.__loopThread)
         self.thread.daemon = True
         self.nome = nome_cliente
         self.thread.start()
-        #gerar chave assicrona
-        self.chave_publica = None
+        self.par_chaves = RSA.generate(1024, random_seed)
+        self.chave_publica = self.par_chaves.publickey()
         self.servidor = servidor
 
 
@@ -35,13 +60,25 @@ class Usuario(Cliente):
         descricao = str(input("Insira descriçao do produto: "))
         preco_minimo = float(input("Insira o lance minimo: "))
         duracao = int(input("Insira a duração do leilao: "))
-        self.servidor.criar_leilao(self.__get_cliente(), nome, descricao, preco_minimo, duracao)
+
+        leilao = {
+            "uri_criador": self.uri,
+            "nome": nome,
+            "descricao": descricao,
+            "preco_minimo": preco_minimo,
+            "duracao": duracao,
+        }
+
+        value_hash = SHA256.new(str(leilao).encode('utf-8')).digest()
+        signed_value = self.par_chaves.sign(value_hash, '')
+
+        self.servidor.criar_leilao(self.__get_cliente(), leilao, signed_value)
 
     def dar_lance(self):
         id_leilao = int(input("Insira o id do leilao: "))
-        lance = float(input("Insira o valor do lance: "))
-        self.servidor.dar_lance(self.__get_cliente(), id_leilao, lance)
-
+        valor_lance = float(input("Insira o valor do lance: "))
+        lance = Lance(self.__get_cliente(), valor_lance)
+        self.servidor.dar_lance(id_leilao, lance)
 
     @Pyro5.api.expose
     @Pyro5.api.oneway

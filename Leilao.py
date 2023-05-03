@@ -39,7 +39,12 @@ class Leilao(Thread):
                 msg = f"Leilão {self.id_leilao} - Lance recebido! Cliente {nome_cliente}, Produto:{self.produto.nome}, Lance: {valor_lance}"
                 self.notificar_clientes(msg, self.clientes)
             tempo_atual = time.perf_counter()
-        msg = f"Leilão {self.id_leilao} finalizado! Produto vendido: {self.produto}, Preço de Venda: {self.lance_atual}, Vencedor: {self.vencedor}"
+        
+        if (self.vencedor is None):
+            msg = f"Leilão {self.id_leilao} finalizado! Produto {self.produto} - Nenhum lance foi efetuado para compra do produto!"
+        else:
+            msg = f"Leilão {self.id_leilao} finalizado! Produto vendido: {self.produto}, Preço de Venda: {self.lance_atual}, Vencedor: {self.vencedor}"
+
         self.notificar_clientes(msg, self.clientes)
         self.duracao = -1
         return True
@@ -47,31 +52,28 @@ class Leilao(Thread):
     def dar_lance(self, lance):
         if DEBUG == 1:
             print(f"1 - Lance recebido! Cliente {lance.cliente.nome}, Lance {lance.valor}")
+    
+        msg = f"Seu lance de R${lance.valor} foi recebido!"
         if self.duracao == -1:
-            msg = "Não foi possivel realizar o lance! Leilão finalizado!"
-            self.notificar_clientes(msg, (lance.cliente,))
-        if lance.valor <= self.lance_atual:
-            return False
-        
-        buscarCliente = list(filter(lambda x: (x.nome == lance.cliente.nome), self.clientes))
-        if buscarCliente == []:
+            msg = "Não foi possivel realizar o lance! Leilão finsalizado!"
+        elif lance.valor <= self.lance_atual:
+            msg = "Não foi possível realizar o lance! Valor abaixo do lance atual"
+
+        self.notificar_clientes(msg, (lance.cliente,))
+
+        if self.duracao == -1 or lance.valor <= self.lance_atual:
+            return
+
+        registrado = list(filter(lambda x: (x.nome == lance.cliente.nome), self.clientes))
+        if len(registrado) == 0:
             self.clientes.append(lance.cliente)
-            
+
         self.lances.append(lance)
         print(f"dar_lance: Lista de lances = {self.lances}")
-
-    def listar_lance_atual(self):
-        if DEBUG == 1:
-            print(f"Listando lance atual")
-        return self.lance_atual
 
     def notificar_clientes(self, msg, clientes):
         self.notificar(msg, clientes)
 
     def __str__(self):
         tempo_restante = time.perf_counter() - self.tempo_inicio
-        return f"""\
-                Leilão {self.id_leilao}\n\
-                Criador: {self.criador.nome}, Produto: {self.produto.nome}\
-                Último lance: {self.lance_atual}, Tempo Restante: {tempo_restante}\
-                """
+        return f"Leilão {self.id_leilao}\nCriador: {self.criador.nome}, Produto: {self.produto.nome}, Último lance: {self.lance_atual}, Tempo Restante: {tempo_restante}"

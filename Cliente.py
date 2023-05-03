@@ -3,4 +3,3 @@ class Cliente():
         self.nome = nome
         self.chave_publica = chave
         self.uri = uri
-
