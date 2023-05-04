@@ -1,15 +1,19 @@
 import Pyro5.api
 import Pyro5.server
+import base64
 
 from Crypto.Hash import SHA256
 from Crypto.Signature import pkcs1_15
 from Crypto.PublicKey import RSA
+
+from threading import Thread
 
 from Produto import Produto
 from Leilao import Leilao
 from Cliente import Cliente
 from Lance import Lance
 
+DEBUG = 0
 
 def __dict_to_cliente(_, dict_cliente):
     nome = dict_cliente.get("nome")
@@ -25,10 +29,6 @@ def __dict_to_lance(_, dict_lance):
 Pyro5.api.register_dict_to_class("Cliente", __dict_to_cliente)
 Pyro5.api.register_dict_to_class("Lance", __dict_to_lance)
 
-DEBUG = 1
-
-
-
 @Pyro5.api.behavior(instance_mode="single")
 class Servidor():
     def __init__(self):
@@ -39,11 +39,12 @@ class Servidor():
     @Pyro5.api.callback
     def cadastrar_usuario(self, cliente):
         if DEBUG == 1:
+            print()
             print(f"Cadastrando usuário {cliente.nome}")
 
         # Checa se o usuário já está cadastrado
         res = list(filter(lambda x: (x.uri == cliente.uri), self.clientes))
-        
+
         if not res:
             self.clientes.append(cliente)
             return True
@@ -54,31 +55,38 @@ class Servidor():
     @Pyro5.api.callback
     def listar_leiloes(self):
         if DEBUG == 1:
-            print("Listando leilões cadastrados")
+            print("\nListando leilões cadastrados")
+        
+        if len(self.leiloes) == 0:
+            return "Não há leilões ativos no momento"
+        
         ret = ""
         for leilao in self.leiloes:
-            ret += str(leilao) + '\n'
+            if leilao.duracao != -1:
+                ret += str(leilao) + '\n'
+
         return ret
 
     @Pyro5.api.expose
     @Pyro5.api.oneway
-    def criar_leilao(self, criador, infos_leilao, signed_hash):
+    def criar_leilao(self, criador, infos_leilao, leilao_assinado):
         if DEBUG == 1:
-            print(f"Criando leilão {len(self.leiloes) + 1}")
+            print(f"\nCriando leilão {len(self.leiloes) + 1}")
         if infos_leilao['preco_minimo'] <= 0:
             return
 
         cliente = list(filter(lambda x: (x.uri == criador.uri), self.clientes))
         if (len(cliente) != 1):
             msg = "Houve um problema ao criar o leilão!"
-            self.notificar_clientes(msg, tuple(criador))
+            self.notificar_clientes(msg, (criador,))
             return
         
         cliente = cliente[0]
+        leilao_assinado = base64.b64decode(leilao_assinado)
 
-        if not (self.__verificar_validade(cliente.chave_publica, infos_leilao, signed_hash)):
-            msg = "Não foi possível validar a criptografia do conteúdo"
-            self.notificar_clientes(msg, tuple(cliente))
+        if not (self.__verificar_validade(cliente.chave_publica, infos_leilao, leilao_assinado)):
+            msg = "Não foi possível cadastrar o leilão pois houve um problema com a criptografia do conteúdo!"
+            self.notificar_clientes(msg, (cliente,))
             return
         
         nome = infos_leilao['nome']
@@ -100,10 +108,30 @@ class Servidor():
 
     @Pyro5.api.expose
     @Pyro5.api.oneway
-    def dar_lance(self, id_leilao, lance):
+    def dar_lance(self, id_leilao, dict_lance, lance_assinado):
+        nome = dict_lance['cliente']['nome']
+        chave_pub = dict_lance['cliente']['chave_publica']
+        uri_cliente = dict_lance['cliente']['uri']
+        cliente = Cliente(nome, chave_pub, uri_cliente)
+        lance = Lance(cliente, dict_lance['valor_lance'])
+
         if DEBUG == 1:
-            print(f"Lance recebido, leilão {id_leilao}, cliente {lance.cliente.nome}")
+            print(f"\nLance recebido, leilão {id_leilao}, cliente {lance.cliente.nome}")
         if id_leilao <= 0 or id_leilao > len(self.leiloes):
+            return
+        
+        cliente = list(filter(lambda x: (x.uri == lance.cliente.uri), self.clientes))
+        if (len(cliente) != 1):
+            msg = "Houve um problema ao criar o leilão!"
+            self.notificar_clientes(msg, (cliente,))
+            return
+        
+        cliente = cliente[0]
+        lance_assinado = base64.b64decode(lance_assinado)
+
+        if not (self.__verificar_validade(cliente.chave_publica, dict_lance, lance_assinado)):
+            msg = "Não foi possível dar o lance pois houve um problema com a criptografia do conteúdo!"
+            self.notificar_clientes(msg, (cliente,))
             return
         
         leilao = self.leiloes[id_leilao - 1]
@@ -113,17 +141,32 @@ class Servidor():
         for cliente in lista:
             obj_cliente = Pyro5.api.Proxy(cliente.uri)
             obj_cliente.notificar(msg)
-    def __verificar_validade(self, pub_key, content, signed_hash):
-        content_hash = SHA256.new(str(content).encode('utf-8'))
+
+    def __verificar_validade(self, chave_publica, conteudo, hash_assinado):
+        chave_publica = base64.b64decode(chave_publica).decode()
+        hash_conteudo = SHA256.new(str(conteudo).encode('utf-8'))
+        assinatura = pkcs1_15.new(RSA.import_key(chave_publica))
+
         try:
-            pkcs1_15.new(RSA.import_key(pub_key)).verify(content_hash, signed_hash)
+            assinatura.verify(hash_conteudo, hash_assinado)
+            print()
             print("Assinatura válida.")
             return True
-        except:
-            print("Assinatura inválida.")
+        except (ValueError, TypeError):
+            print()
+            print("Assinatura inválida")
             return False
 
+def menu():
+    while True:
+        print("Digite 0 para encerrar o servidor!")
+        option = input("> ")
 
+        if not option.isdigit() or int(option) != 0:
+            print("Opção inválida, tente novamente!") 
+        else:
+            deamon.close()
+            return
 
 if __name__ == "__main__":
     servidor = Servidor()
@@ -131,6 +174,9 @@ if __name__ == "__main__":
     ns = Pyro5.api.locate_ns()
     uri = deamon.register(servidor)
     ns.register("servidor", uri)
+    thread = Thread(target=deamon.requestLoop)
+    thread.start()
 
-    deamon.requestLoop()
-    print("Aplicação Finalizada")
+    print("Servidor iniciado...")
+    menu()
+    thread.join()

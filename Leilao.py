@@ -32,8 +32,6 @@ class Leilao(Thread):
                 lance = self.lances.pop(0)
                 nome_cliente = lance.cliente.nome
                 valor_lance = lance.valor
-                if DEBUG == 1:
-                    print(f"2 -Lance recebido do cliente {nome_cliente}, valor {valor_lance}")
                 self.lance_atual = valor_lance
                 self.vencedor = nome_cliente
                 msg = f"Leilão {self.id_leilao} - Lance recebido! Cliente {nome_cliente}, Produto:{self.produto.nome}, Lance: {valor_lance}"
@@ -41,18 +39,15 @@ class Leilao(Thread):
             tempo_atual = time.perf_counter()
         
         if (self.vencedor is None):
-            msg = f"Leilão {self.id_leilao} finalizado! Produto {self.produto} - Nenhum lance foi efetuado para compra do produto!"
+            msg = f"Leilão {self.id_leilao} finalizado! {self.produto} - Nenhum lance foi efetuado para compra do produto!"
         else:
-            msg = f"Leilão {self.id_leilao} finalizado! Produto vendido: {self.produto}, Preço de Venda: {self.lance_atual}, Vencedor: {self.vencedor}"
+            msg = f"Leilão {self.id_leilao} finalizado! {self.produto}, Preço de Venda: {self.lance_atual}, Vencedor: {self.vencedor}"
 
         self.notificar_clientes(msg, self.clientes)
         self.duracao = -1
         return True
 
     def dar_lance(self, lance):
-        if DEBUG == 1:
-            print(f"1 - Lance recebido! Cliente {lance.cliente.nome}, Lance {lance.valor}")
-    
         msg = f"Seu lance de R${lance.valor} foi recebido!"
         if self.duracao == -1:
             msg = "Não foi possivel realizar o lance! Leilão finsalizado!"
@@ -69,11 +64,10 @@ class Leilao(Thread):
             self.clientes.append(lance.cliente)
 
         self.lances.append(lance)
-        print(f"dar_lance: Lista de lances = {self.lances}")
 
     def notificar_clientes(self, msg, clientes):
         self.notificar(msg, clientes)
 
     def __str__(self):
-        tempo_restante = time.perf_counter() - self.tempo_inicio
-        return f"Leilão {self.id_leilao}\nCriador: {self.criador.nome}, Produto: {self.produto.nome}, Último lance: {self.lance_atual}, Tempo Restante: {tempo_restante}"
+        tempo_restante = self.duracao - (time.perf_counter() - self.tempo_inicio)
+        return f"Leilão {self.id_leilao}\nCriador: {self.criador.nome}, Produto: {self.produto.nome}, Último lance: {self.lance_atual}, Tempo Restante: {round(tempo_restante)}s"
