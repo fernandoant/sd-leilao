@@ -36,7 +36,7 @@ class Servidor():
         self.leiloes = []
 
     @Pyro5.api.expose
-    @Pyro5.api.callback
+    #@Pyro5.api.callback
     def cadastrar_usuario(self, cliente):
         if DEBUG == 1:
             print()
@@ -52,7 +52,7 @@ class Servidor():
         return False
 
     @Pyro5.api.expose
-    @Pyro5.api.callback
+    #@Pyro5.api.callback
     def listar_leiloes(self):
         if DEBUG == 1:
             print("\nListando leilões cadastrados")
@@ -68,26 +68,22 @@ class Servidor():
         return ret
 
     @Pyro5.api.expose
-    @Pyro5.api.oneway
+    #@Pyro5.api.callback
     def criar_leilao(self, criador, infos_leilao, leilao_assinado):
         if DEBUG == 1:
             print(f"\nCriando leilão {len(self.leiloes) + 1}")
         if infos_leilao['preco_minimo'] <= 0:
-            return
+            return False
 
         cliente = list(filter(lambda x: (x.uri == criador.uri), self.clientes))
         if (len(cliente) != 1):
-            msg = "Houve um problema ao criar o leilão!"
-            self.notificar_clientes(msg, (criador,))
-            return
+            return False
         
         cliente = cliente[0]
         leilao_assinado = base64.b64decode(leilao_assinado)
 
         if not (self.__verificar_validade(cliente.chave_publica, infos_leilao, leilao_assinado)):
-            msg = "Não foi possível cadastrar o leilão pois houve um problema com a criptografia do conteúdo!"
-            self.notificar_clientes(msg, (cliente,))
-            return
+            return False
         
         nome = infos_leilao['nome']
         descricao = infos_leilao['descricao']
@@ -105,9 +101,10 @@ class Servidor():
 
         msg = f"Leilão {id_leilao} - novo produto registrado! Vendedor {criador.nome}, Produto:{nome}, Preço inicial: {preco_minimo}, Duração: {duracao}"
         self.notificar_clientes(msg, self.clientes)
+        return True
 
     @Pyro5.api.expose
-    @Pyro5.api.oneway
+    #@Pyro5.api.callback
     def dar_lance(self, id_leilao, dict_lance, lance_assinado):
         nome = dict_lance['cliente']['nome']
         chave_pub = dict_lance['cliente']['chave_publica']
@@ -118,24 +115,20 @@ class Servidor():
         if DEBUG == 1:
             print(f"\nLance recebido, leilão {id_leilao}, cliente {lance.cliente.nome}")
         if id_leilao <= 0 or id_leilao > len(self.leiloes):
-            return
+            return False
         
         cliente = list(filter(lambda x: (x.uri == lance.cliente.uri), self.clientes))
         if (len(cliente) != 1):
-            msg = "Houve um problema ao criar o leilão!"
-            self.notificar_clientes(msg, (cliente,))
-            return
+            return False
         
         cliente = cliente[0]
         lance_assinado = base64.b64decode(lance_assinado)
 
         if not (self.__verificar_validade(cliente.chave_publica, dict_lance, lance_assinado)):
-            msg = "Não foi possível dar o lance pois houve um problema com a criptografia do conteúdo!"
-            self.notificar_clientes(msg, (cliente,))
-            return
+            return False
         
         leilao = self.leiloes[id_leilao - 1]
-        leilao.dar_lance(lance)
+        return leilao.dar_lance(lance)
 
     def notificar_clientes(self, msg, lista):
         for cliente in lista:

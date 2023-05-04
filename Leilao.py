@@ -48,22 +48,17 @@ class Leilao(Thread):
         return True
 
     def dar_lance(self, lance):
-        msg = f"Seu lance de R${lance.valor} foi recebido!"
         if self.duracao == -1:
-            msg = "Não foi possivel realizar o lance! Leilão finsalizado!"
+            return False
         elif lance.valor <= self.lance_atual:
-            msg = "Não foi possível realizar o lance! Valor abaixo do lance atual"
-
-        self.notificar_clientes(msg, (lance.cliente,))
-
-        if self.duracao == -1 or lance.valor <= self.lance_atual:
-            return
+            return False
 
         registrado = list(filter(lambda x: (x.nome == lance.cliente.nome), self.clientes))
         if len(registrado) == 0:
             self.clientes.append(lance.cliente)
 
         self.lances.append(lance)
+        return True
 
     def notificar_clientes(self, msg, clientes):
         self.notificar(msg, clientes)

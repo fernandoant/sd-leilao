@@ -74,7 +74,12 @@ class Usuario(Cliente):
 
         leilao_assinado = self._assinar(leilao)
 
-        self.servidor.criar_leilao(self.__get_cliente(), leilao, leilao_assinado)
+        res = self.servidor.criar_leilao(self.__get_cliente(), leilao, leilao_assinado)
+
+        if (res == True):
+            print("Leilão criado com sucesso")
+        else:
+            print("Houve um problema ao cadastrar o leilão")
 
     def dar_lance(self):
         id_leilao = int(input("Insira o id do leilao: "))
@@ -91,7 +96,12 @@ class Usuario(Cliente):
 
         lance_assinado = self._assinar(lance)
 
-        self.servidor.dar_lance(id_leilao, lance, lance_assinado)
+        res = self.servidor.dar_lance(id_leilao, lance, lance_assinado)
+
+        if (res == True):
+            print("Lance registrado com sucesso")
+        else:
+            print("Houve um problema ao registrar o lance")
 
     @Pyro5.api.expose
     @Pyro5.api.oneway
@@ -112,9 +122,9 @@ class Usuario(Cliente):
 
 def menu():
     print("O que deseja fazer?")
-    print("1) Listar leilões ativos")
-    print("2) Criar leilão")
-    print("3) Dar lance em um leilão ativo")
+    print("1) Criar leilão")
+    print("2) Dar lance em um leilão ativo")
+    print("3) Listar leilões ativos")
     print("0) Sair")
     op = input("> ")
     if not op.isdigit() or int(op) < 0 or int(op) > 4:
@@ -137,11 +147,11 @@ if __name__ == "__main__":
             continue
 
         if op == 1:
-            usuario.listar_leiloes()
-        elif op == 2:
             usuario.criar_leilao()
-        elif op == 3:
+        elif op == 2:
             usuario.dar_lance()
+        elif op == 3:
+            usuario.listar_leiloes()
         elif op == 0:
             usuario.daemon.close()
             break
