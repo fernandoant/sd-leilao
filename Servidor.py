@@ -2,6 +2,7 @@ import Pyro5.api
 import Pyro5.server
 
 from Crypto.Hash import SHA256
+from Crypto.Signature import pkcs1_15
 from Crypto.PublicKey import RSA
 
 from Produto import Produto
@@ -25,6 +26,8 @@ Pyro5.api.register_dict_to_class("Cliente", __dict_to_cliente)
 Pyro5.api.register_dict_to_class("Lance", __dict_to_lance)
 
 DEBUG = 1
+
+
 
 @Pyro5.api.behavior(instance_mode="single")
 class Servidor():
@@ -73,7 +76,7 @@ class Servidor():
         
         cliente = cliente[0]
 
-        if not (__verificar_validade(cliente.chave_publica, infos_leilao, signed_hash)):
+        if not (self.__verificar_validade(cliente.chave_publica, infos_leilao, signed_hash)):
             msg = "Não foi possível validar a criptografia do conteúdo"
             self.notificar_clientes(msg, tuple(cliente))
             return
@@ -110,10 +113,17 @@ class Servidor():
         for cliente in lista:
             obj_cliente = Pyro5.api.Proxy(cliente.uri)
             obj_cliente.notificar(msg)
+    def __verificar_validade(self, pub_key, content, signed_hash):
+        content_hash = SHA256.new(str(content).encode('utf-8'))
+        try:
+            pkcs1_15.new(RSA.import_key(pub_key)).verify(content_hash, signed_hash)
+            print("Assinatura válida.")
+            return True
+        except:
+            print("Assinatura inválida.")
+            return False
 
-def __verificar_validade(pub_key, content, signed_hash):
-    content_hash = SHA256.new(content)
-    return pub_key.verify(content_hash, signed_hash)
+
 
 if __name__ == "__main__":
     servidor = Servidor()

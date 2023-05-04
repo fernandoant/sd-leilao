@@ -5,6 +5,7 @@ from Lance import Lance
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto import Random
+from Crypto.Signature import pkcs1_15
 
 import Pyro5.server
 import Pyro5.api
@@ -41,7 +42,8 @@ class Usuario(Cliente):
         self.nome = nome_cliente
         self.thread.start()
         self.par_chaves = RSA.generate(1024, random_seed)
-        self.chave_publica = self.par_chaves.publickey()
+        self.chave_privada = self.par_chaves.exportKey()
+        self.chave_publica = self.par_chaves.publickey().exportKey()
         self.servidor = servidor
 
 
@@ -69,8 +71,8 @@ class Usuario(Cliente):
             "duracao": duracao,
         }
 
-        value_hash = SHA256.new(str(leilao).encode('utf-8')).digest()
-        signed_value = self.par_chaves.sign(value_hash, '')
+        value_hash = SHA256.new(str(leilao).encode('utf-8'))
+        signed_value = pkcs1_15.new(RSA.import_key(self.chave_privada)).sign(value_hash)
 
         self.servidor.criar_leilao(self.__get_cliente(), leilao, signed_value)
 
@@ -110,7 +112,6 @@ if __name__ == "__main__":
 
     nome_cliente = str(input("Digite seu nome: "))
     usuario = Usuario(servidor, nome_cliente)
-    usuario.chave_publica = nome_cliente
     usuario.cadastrar()
 
     while True:
